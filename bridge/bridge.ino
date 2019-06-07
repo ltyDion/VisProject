@@ -6,7 +6,7 @@
 //************************************************************
 #include "painlessMesh.h"
 
-#define   MESH_PREFIX     "name"
+#define   MESH_PREFIX     "MeshNetworkWIFI"
 #define   MESH_PASSWORD   "qwertyuiop"
 #define   MESH_PORT       5555
 
@@ -20,16 +20,23 @@ void receivedCallback( uint32_t from, String &msg );
 
 Scheduler userScheduler; // to control your personal task
 painlessMesh  mesh;
+int toRead = 0;
 
 void sendMessage(); 
 
 Task taskSendMessage( TASK_SECOND * 1 , TASK_FOREVER, &sendMessage );
 
 void sendMessage() {
-  String msg = "Hello from Bridge ";
-  msg += mesh.getNodeId();
+  String msg;
+  if (toRead == 0){
+    msg = "Hello from Bridge ";
+    msg += mesh.getNodeId();
+  } else {
+    msg = "Read sensor";
+  } 
   mesh.sendBroadcast( msg );
   taskSendMessage.setInterval( random( TASK_SECOND * 1, TASK_SECOND * 5 ));
+  Serial.printf("Bridge send");
 }
 
 
@@ -40,7 +47,7 @@ void setup() {
   mesh.setDebugMsgTypes( ERROR | STARTUP | CONNECTION );  // set before init() so that you can see startup messages
   // Channel set to 6. Make sure to use the same channel for your mesh and for you other
   // network (STATION_SSID)
-  mesh.init( MESH_PREFIX, MESH_PASSWORD, MESH_PORT, WIFI_AP_STA, 6 );
+  mesh.init( MESH_PREFIX, MESH_PASSWORD, &userScheduler, MESH_PORT, WIFI_AP_STA, 6 );
   mesh.stationManual(STATION_SSID, STATION_PASSWORD, STATION_PORT, station_ip);
   // Bridge node, should (in most cases) be a root node. See [the wiki](https://gitlab.com/painlessMesh/painlessMesh/wikis/Possible-challenges-in-mesh-formation) for some background
   mesh.setRoot(true);
@@ -60,4 +67,7 @@ void loop() {
 
 void receivedCallback( uint32_t from, String &msg ) {
   Serial.printf("bridge: Received from %u msg=%s\n", from, msg.c_str());
+  if (msg.indexOf("read") >= 0) {
+    toRead = 1;
+  }
 }
